@@ -8,19 +8,16 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-/*export default {
-	async fetch(request, env, ctx) {
-		return new Response('Hello World Test!');
-	},
-};
-*/
-
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
+	  
+	  // Variables
 	  const response = await fetch(request);
 	  const AuthEmail = request.headers.get('Cf-Access-Authenticated-User-Email');
 	  const timestamp = new Date().toUTCString();
 	  const country = request.cf.country;
+	  const baseURL = 'https://tunnel.persistent-terabyte.sxplab.com/DVWA/';
+	  const url = baseURL + country;
 	  
 	  // Get the Content-Type of the response
 	  const contentType = response.headers.get('Content-Type');
@@ -32,24 +29,40 @@ export default {
 
 	  // For HTML content, modify the response
 	  let originalHtml = await response.text();
-		
-	  // Country Flag
-	  const countryMap = {
-		  US: "https://upload.wikimedia.org/wikipedia/commons/a/a4/Flag_of_the_United_States.svg",
-		  FR: "https://upload.wikimedia.org/wikipedia/commons/c/c3/Flag_of_France.svg",
-		  PT: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Flag_of_Portugal.svg",
-		  ES: "https://en.wikipedia.org/wiki/Flag_of_Spain#/media/File:Flag_of_Spain.svg"
-		};
-	  const url = countryMap[country];
-	
+	  
 	  // Inject JavaScript or modify HTML as needed
 	  const scriptCode = `
 	  <script>
-	    console.log("Injected JavaScript is executing!");
 	    document.body.innerHTML += '<h2>Authenticated email: ${AuthEmail} at ${timestamp} from <a href="${url}">${country}</a></h2>';
 	  </script>
 	  `;
 	  
+	  // If someone clicks on the link, we parse its request
+	  if (request.url == url) {
+		  
+			// Variables
+		    const newUrl = new URL(request.url);
+			const key = newUrl.pathname.slice(1);
+
+			// We get the R2 bucket object
+			const object = await env.cfBucket.get(key);
+
+			// Return 404 if object is not found
+			if (object === null) {
+			  return new Response("Object Not Found", { status: 404 });
+			}
+
+			// Rewrite headers
+			const headers = new Headers();
+			object.writeHttpMetadata(headers);
+			headers.set("etag", object.httpEtag);
+			headers.set("Content-Type", "image/svg+xml");
+
+			// Return response for path /DVWA/${COUNTRY}
+			return new Response(object.body, {
+			  headers,
+			});
+	  }
 	  // Javascrit code insertion in body
 	  const modifiedHtml = originalHtml.replace('<body>', `<body>${scriptCode}`);
 
