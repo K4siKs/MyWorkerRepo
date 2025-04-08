@@ -40,28 +40,28 @@ export default {
 	  // If someone clicks on the link, we parse its request
 	  if (request.url == url) {
 		  
-			// Variables
-		    const newUrl = new URL(request.url);
-			const key = newUrl.pathname.slice(1);
+		// Variables
+		const newUrl = new URL(request.url);
+		const key = newUrl.pathname.slice(1);
 
-			// We get the R2 bucket object
-			const object = await env.cfBucket.get(key);
+		// We get the R2 bucket object
+		const object = await env.cfBucket.get(key);
 
-			// Return 404 if object is not found
-			if (object === null) {
-			  return new Response("Object Not Found", { status: 404 });
-			}
+		// Return 404 if object is not found
+		if (object === null) {
+		  return new Response("Object Not Found", { status: 404 });
+		}
 
-			// Rewrite headers
-			const headers = new Headers();
-			object.writeHttpMetadata(headers);
-			headers.set("etag", object.httpEtag);
-			headers.set("Content-Type", "image/svg+xml");
+		// Rewrite headers
+		const headers = new Headers();
+		object.writeHttpMetadata(headers);
+		headers.set("etag", object.httpEtag);
+		headers.set("Content-Type", "image/svg+xml");
 
-			// Return response for path /DVWA/${COUNTRY}
-			return new Response(object.body, {
-			  headers,
-			});
+		// Return response for path /DVWA/${COUNTRY}
+		return new Response(object.body, {
+		  headers,
+		});
 	  }
 	  // Javascrit code insertion in body
 	  const modifiedHtml = originalHtml.replace('<body>', `<body>${scriptCode}`);
